@@ -1,0 +1,72 @@
+---
+- name: Tomcat setup and Deployment on ansible server
+  hosts: myhosts
+
+  tasks:
+    - name: Installing Java
+      apt:
+        name: default-jdk
+        state: present
+
+    - name: Installing Tomcat10
+      apt:
+        name: tomcat10
+        state: present
+
+    - name: Starting and enabling Tomcat10
+      service:
+        name: tomcat10
+        state: started
+        enabled: true  # Corrected the typo here
+
+    - name: Installing Git
+      apt:
+        name: git
+        state: present  # Fixed typo: you should install git, not apt
+
+    - name: Installing Maven
+      apt:
+        name: maven
+        state: present
+
+    - name: Clone Git repository
+      git:
+        repo: 'https://github.com/Dexterzep-Org/java-ci-cd.git'  # Changed to HTTPS URL (you can use SSH if set up)
+        dest: /POC
+        version: DEV
+        update: yes
+        clone: yes
+        force: yes  # Force a fresh clone
+
+    - name: Set permissions on cloned directory (optional)
+      file:
+        path: /POC
+        owner: root
+        group: root
+        mode: '0755'  # More restrictive permission
+
+    - name: Change directory
+      command: pwd
+      args:
+        chdir: /POC
+      register: output
+
+    - name: Run Maven build
+      command: mvn clean install -DskipTests  # Fixed typo in -DskipTests
+      args:
+        chdir: /POC
+
+    - name: Move WAR file from target to Tomcat webapps
+      command: cp /POC/target/sample-project-0.0.1-SNAPSHOT.war /var/lib/tomcat10/webapps/
+
+    - name: Ensure correct permissions on WAR file in Tomcat webapps
+      file:
+        path: /var/lib/tomcat10/webapps/sample-project-0.0.1-SNAPSHOT.war
+        owner: root
+        group: root
+        mode: '0644'  # More restrictive permission for the WAR file
+
+    - name: Restart Tomcat to deploy the WAR file
+      systemd:
+        name: tomcat10
+        state: restarted
